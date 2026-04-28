@@ -1,7 +1,6 @@
-SpeechRecognition
-pyaudio
-google-generativeai
-gTTS
-pipwin
 streamlit
 python-dotenv
+SpeechRecognition
+gTTS
+openai
+pyaudio
