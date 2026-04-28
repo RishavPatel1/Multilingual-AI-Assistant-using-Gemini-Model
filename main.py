@@ -221,7 +221,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    audio_input = st.audio_input("🎙️ Ask me Anything!")
+    audio_input = st.audio_input("🎙️ Listening...")
 
     if audio_input:
         with st.spinner("🎧 Converting your voice to text..."):
