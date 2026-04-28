@@ -1,116 +1,3 @@
-import os
-import logging
-import speech_recognition as sr
-import streamlit as st
-
-from dotenv import load_dotenv
-from gtts import gTTS
-from openai import OpenAI
-
-
-# -----------------------------
-# Load Environment Variables
-# -----------------------------
-load_dotenv()
-
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-
-
-# -----------------------------
-# Logging Setup
-# -----------------------------
-LOG_DIR = "logs"
-LOG_FILE = "application.log"
-
-os.makedirs(LOG_DIR, exist_ok=True)
-
-logging.basicConfig(
-    filename=os.path.join(LOG_DIR, LOG_FILE),
-    format="[ %(asctime)s ] %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
-
-
-# -----------------------------
-# OpenRouter Client
-# -----------------------------
-client = OpenAI(
-    api_key=OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1"
-)
-
-
-# -----------------------------
-# Speech Recognition
-# -----------------------------
-def takeCommand():
-    recognizer = sr.Recognizer()
-
-    try:
-        with sr.Microphone() as source:
-            st.info("🎤 Listening...")
-            recognizer.pause_threshold = 1
-            recognizer.adjust_for_ambient_noise(source, duration=0.5)
-
-            audio = recognizer.listen(
-                source,
-                timeout=5,
-                phrase_time_limit=10
-            )
-
-        st.info("🧠 Recognizing...")
-        query = recognizer.recognize_google(audio, language="en-in")
-
-        return query
-
-    except Exception as e:
-        logging.exception(e)
-        return None
-
-
-# -----------------------------
-# OpenRouter LLM Response
-# -----------------------------
-def llm_response(user_input):
-    try:
-        response = client.chat.completions.create(
-            model="openai/gpt-oss-120b:free",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a smart multilingual AI voice assistant. Keep answers clear and helpful."
-                },
-                {
-                    "role": "user",
-                    "content": user_input
-                }
-            ],
-            temperature=0.7,
-            max_tokens=500
-        )
-
-        return response.choices[0].message.content
-
-    except Exception as e:
-        logging.exception(e)
-        return "Unable to generate response right now. Please try again later."
-
-
-# -----------------------------
-# Text to Speech
-# -----------------------------
-def text_to_speech(text):
-    audio_path = "speech.mp3"
-
-    tts = gTTS(text=text, lang="en")
-    tts.save(audio_path)
-
-    return audio_path
-
-
-# -----------------------------
-# Streamlit App
-# -----------------------------
 def main():
     st.set_page_config(
         page_title="Multilingual AI Assistant",
@@ -118,33 +5,115 @@ def main():
         layout="centered"
     )
 
-    st.title("🎙️ Multilingual AI Assistant")
-    st.write("Powered by OpenRouter + GPT-OSS-120B Free")
+    st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(135deg, #0f172a, #1e1b4b, #312e81);
+        color: white;
+    }
+
+    .hero {
+        text-align: center;
+        padding: 35px 25px;
+        border-radius: 25px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255,255,255,0.15);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+        margin-bottom: 30px;
+    }
+
+    .hero h1 {
+        font-size: 44px;
+        font-weight: 800;
+        background: linear-gradient(90deg, #38bdf8, #a78bfa, #f472b6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+        color: #cbd5e1;
+        font-size: 17px;
+    }
+
+    div.stButton > button {
+        width: 100%;
+        background: linear-gradient(90deg, #2563eb, #7c3aed, #db2777);
+        color: white;
+        border: none;
+        border-radius: 40px;
+        padding: 15px;
+        font-size: 20px;
+        font-weight: 700;
+        box-shadow: 0 12px 35px rgba(124, 58, 237, 0.45);
+    }
+
+    div.stButton > button:hover {
+        transform: scale(1.03);
+        box-shadow: 0 18px 45px rgba(219, 39, 119, 0.55);
+    }
+
+    .result-card {
+        background: rgba(15, 23, 42, 0.75);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 20px;
+        padding: 20px;
+        margin-top: 20px;
+        color: #e5e7eb;
+    }
+
+    .footer {
+        text-align: center;
+        color: #94a3b8;
+        margin-top: 35px;
+        font-size: 14px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="hero">
+        <h1>🎙️ Multilingual AI Assistant</h1>
+        <p>Speak your question and get an AI-powered voice response.</p>
+        <p><b>Powered by OpenRouter + GPT-OSS-120B Free</b></p>
+    </div>
+    """, unsafe_allow_html=True)
 
     if not OPENROUTER_API_KEY:
         st.error("OPENROUTER_API_KEY missing in .env file")
         st.stop()
 
-    if st.button("Ask me Anything!"):
-        with st.spinner("Listening..."):
+    if st.button("🎤 Ask me Anything!"):
+        with st.spinner("🎧 Listening..."):
             text = takeCommand()
 
         if not text:
             st.warning("Could not hear you clearly. Please try again.")
             return
 
-        st.success(f"You said: {text}")
-
-        with st.spinner("Thinking..."):
-            response = llm_response(text)
-
-        st.text_area(
-            label="AI Response",
-            value=response,
-            height=250
+        st.markdown(
+            f"""
+            <div class="result-card">
+                <h4>🗣️ You Said</h4>
+                <p>{text}</p>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
 
-        with st.spinner("Generating voice..."):
+        with st.spinner("🧠 Thinking..."):
+            response = llm_response(text)
+
+        st.markdown(
+            f"""
+            <div class="result-card">
+                <h4>🤖 AI Response</h4>
+                <p>{response}</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        with st.spinner("🔊 Generating voice..."):
             audio_path = text_to_speech(response)
 
         with open(audio_path, "rb") as f:
@@ -153,15 +122,14 @@ def main():
         st.audio(audio_bytes, format="audio/mp3")
 
         st.download_button(
-            label="Download Speech",
+            label="⬇️ Download Speech",
             data=audio_bytes,
             file_name="speech.mp3",
             mime="audio/mp3"
         )
 
-
-# -----------------------------
-# Run App
-# -----------------------------
-if __name__ == "__main__":
-    main()
+    st.markdown("""
+    <div class="footer">
+        Built with Python, Streamlit, SpeechRecognition, gTTS and OpenRouter.
+    </div>
+    """, unsafe_allow_html=True)
