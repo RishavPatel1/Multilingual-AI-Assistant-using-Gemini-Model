@@ -1,90 +1,53 @@
-import speech_recognition as sr
-import logging
 import os
+import logging
+import tempfile
+
+import streamlit as st
+import speech_recognition as sr
 from dotenv import load_dotenv
 from gtts import gTTS
-import streamlit as st
 from openai import OpenAI
 
 
-# -----------------------------
-# Load ENV
-# -----------------------------
 load_dotenv()
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-
-# -----------------------------
-# Logger
-# -----------------------------
 LOG_DIR = "logs"
-LOG_FILE_NAME = "application.log"
-
 os.makedirs(LOG_DIR, exist_ok=True)
 
-log_path = os.path.join(LOG_DIR, LOG_FILE_NAME)
-
 logging.basicConfig(
-    filename=log_path,
+    filename=os.path.join(LOG_DIR, "application.log"),
     format="[ %(asctime)s ] %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
 )
 
-
-# -----------------------------
-# OpenRouter Client
-# -----------------------------
 client = OpenAI(
     api_key=OPENROUTER_API_KEY,
     base_url="https://openrouter.ai/api/v1"
 )
 
 
-# -----------------------------
-# Voice Input
-# -----------------------------
-def takeCommand():
-    r = sr.Recognizer()
+def speech_to_text(audio_file):
+    recognizer = sr.Recognizer()
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
+        temp_audio.write(audio_file.read())
+        temp_audio_path = temp_audio.name
 
     try:
-        with sr.Microphone() as source:
-            st.info("Listening...")
-            r.pause_threshold = 1
-            r.adjust_for_ambient_noise(source, duration=0.5)
+        with sr.AudioFile(temp_audio_path) as source:
+            audio = recognizer.record(source)
 
-            audio = r.listen(source, timeout=5, phrase_time_limit=10)
-
-        st.info("Recognizing...")
-        query = r.recognize_google(audio, language="en-in")
-
-        return query
+        text = recognizer.recognize_google(audio, language="en-in")
+        return text
 
     except Exception as e:
-        logging.info(e)
+        logging.exception(e)
         return None
 
 
-# -----------------------------
-# Text to Speech
-# -----------------------------
-def text_to_speech(text):
-    tts = gTTS(text=text, lang="en")
-    file_path = "speech.mp3"
-    tts.save(file_path)
-    return file_path
-
-
-# -----------------------------
-# OpenRouter Model
-# -----------------------------
 def llm_response(user_input):
-    if not OPENROUTER_API_KEY:
-        return "OPENROUTER_API_KEY missing in .env file."
-
-    if not user_input:
-        return "I could not understand your voice."
-
     try:
         response = client.chat.completions.create(
             model="openai/gpt-oss-120b:free",
@@ -106,32 +69,38 @@ def llm_response(user_input):
 
     except Exception as e:
         logging.exception(e)
-        return "Model request failed. Please check OpenRouter API key or free model availability."
+        return "Model request failed. Please check your OpenRouter API key or model availability."
 
 
-# -----------------------------
-# Streamlit App
-# -----------------------------
+def text_to_speech(text):
+    tts = gTTS(text=text, lang="en")
+    audio_path = "speech.mp3"
+    tts.save(audio_path)
+    return audio_path
+
+
 def main():
     st.set_page_config(
-        page_title="Multilingual AI Assistant",
+        page_title="AI Voice Assistant",
         page_icon="🎙️",
         layout="centered"
     )
 
-    st.title("🎙️ Multilingual AI Assistant")
-    st.write("Powered by OpenRouter + GPT-OSS-120B")
+    st.title("🎙️ AI Voice Assistant")
+    st.write("Powered by OpenRouter + GPT-OSS-120B Free")
 
     if not OPENROUTER_API_KEY:
-        st.error("OPENROUTER_API_KEY missing in .env file")
+        st.error("OPENROUTER_API_KEY missing. Add it in Streamlit Secrets.")
         st.stop()
 
-    if st.button("Ask Me Anything"):
-        with st.spinner("Listening..."):
-            user_text = takeCommand()
+    audio_input = st.audio_input("Record your voice")
+
+    if audio_input:
+        with st.spinner("Converting speech to text..."):
+            user_text = speech_to_text(audio_input)
 
         if not user_text:
-            st.warning("Could not hear you properly.")
+            st.warning("Could not understand your audio. Please try again.")
             return
 
         st.success(f"You said: {user_text}")
@@ -139,17 +108,18 @@ def main():
         with st.spinner("Thinking..."):
             reply = llm_response(user_text)
 
+        st.text_area("AI Response", reply, height=250)
+
         with st.spinner("Generating voice..."):
             audio_path = text_to_speech(reply)
 
         with open(audio_path, "rb") as f:
             audio_bytes = f.read()
 
-        st.text_area("Response", reply, height=250)
         st.audio(audio_bytes, format="audio/mp3")
 
         st.download_button(
-            label="Download Voice",
+            label="Download Speech",
             data=audio_bytes,
             file_name="speech.mp3",
             mime="audio/mp3"
