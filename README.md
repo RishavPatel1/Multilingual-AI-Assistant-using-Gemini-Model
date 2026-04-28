@@ -1,4 +1,4 @@
-<h1 align="center">🎙️ AI Voice Assistant</h1>
+<h1 align="center">🎙️ Multilingual AI Assistant</h1>
 
 <p align="center">
   A Python + Streamlit based voice assistant that listens to your voice, converts speech to text, sends the query to OpenRouter, generates an AI response using <strong>openai/gpt-oss-120b:free</strong>, and converts the response back into speech.
