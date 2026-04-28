@@ -93,7 +93,7 @@ def main():
         st.error("OPENROUTER_API_KEY missing. Add it in Streamlit Secrets.")
         st.stop()
 
-    audio_input = st.audio_input("Record your voice")
+    audio_input = st.audio_input("🎤 Ask me Anything!")
 
     if audio_input:
         with st.spinner("Converting speech to text..."):
