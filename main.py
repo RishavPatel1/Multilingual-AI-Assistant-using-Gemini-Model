@@ -86,7 +86,7 @@ def main():
         layout="centered"
     )
 
-    st.title("🎙️ AI Voice Assistant")
+    st.title("🎙️ Multilingual AI Assistant")
     st.write("Powered by OpenRouter + GPT-OSS-120B Free")
 
     if not OPENROUTER_API_KEY:
